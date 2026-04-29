@@ -1,0 +1,106 @@
+services:
+
+  # API Gateway (ESB) - puerto publico 3000
+  gateway:
+    build: ./gateway
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      JWT_SECRET: x18ybcCZjERXNoJlgdnFuOMVWGSTt4QH
+      EMPLEADOS_URL: http://empleados:3001
+      NOMINA_URL: http://nomina:3002
+      RECLUTAMIENTO_URL: http://reclutamiento:3003
+    depends_on:
+      - empleados
+      - nomina
+      - reclutamiento
+    networks: [rrhh-net]
+    restart: unless-stopped
+
+  # Servicio Empleados - puerto interno 3001
+  empleados:
+    build: ./services/empleados
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://postgres:1234@postgres_emp:5432/empleados_db
+    depends_on:
+      postgres_emp:
+        condition: service_healthy
+    networks: [rrhh-net]
+    restart: unless-stopped
+
+  # Servicio Nomina - puerto interno 3002
+  nomina:
+    build: ./services/nomina
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgres://postgres:1234@postgres_nom:5432/nomina_db
+    depends_on:
+      postgres_nom:
+        condition: service_healthy
+    networks: [rrhh-net]
+    restart: unless-stopped
+
+  # Servicio Reclutamiento - puerto interno 3003
+  reclutamiento:
+    build: ./services/reclutamiento
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      MONGO_URL: mongodb://mongo:27017/reclutamiento_db
+    depends_on:
+      - mongo
+    networks: [rrhh-net]
+    restart: unless-stopped
+
+  # Base de datos Empleados
+  postgres_emp:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: empleados_db
+      POSTGRES_PASSWORD: "1234"
+    volumes:
+      - pg_emp_data:/var/lib/postgresql/data
+    networks: [rrhh-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Base de datos Nomina
+  postgres_nom:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nomina_db
+      POSTGRES_PASSWORD: "1234"
+    volumes:
+      - pg_nom_data:/var/lib/postgresql/data
+    networks: [rrhh-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Base de datos Reclutamiento
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    networks: [rrhh-net]
+
+volumes:
+  pg_emp_data:
+  pg_nom_data:
+  mongo_data:
+
+networks:
+  rrhh-net:
+    driver: bridge
