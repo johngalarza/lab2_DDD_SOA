@@ -6,7 +6,6 @@ const winston = require('winston');
 const auth = require('./middlewares/auth');
 
 const app = express();
-app.use(express.json());
 
 // Logger centralizado
 const logger = winston.createLogger({
@@ -33,20 +32,18 @@ app.use((req, _, next) => {
 });
 
 // Ruta publica: login (NO requiere JWT)
-app.use('/auth/login', require('./routes/auth'));
+app.use('/auth/login', express.json(), require('./routes/auth'));
 
-// Funcion auxiliar para crear opciones del proxy
 const proxyOpts = (target, name) => ({
     target,
     changeOrigin: true,
-    on: {
-        error: (err, req, res) => {
-            logger.error(`[${name}] ${err.message}`);
-            res.status(503).json({
-                error: `Servicio ${name} no disponible`,
-                detalle: err.message
-            });
-        }
+    pathRewrite: { '^/api': '' },
+    onError: (err, req, res) => {
+        logger.error(`[${name}] ${err.message}`);
+        res.status(503).json({
+            error: `Servicio ${name} no disponible`,
+            detalle: err.message
+        });
     }
 });
 
